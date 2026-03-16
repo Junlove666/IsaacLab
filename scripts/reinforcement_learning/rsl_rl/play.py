@@ -134,7 +134,7 @@ def _maybe_set_camera_view(env) -> None:
 
         pos = robot.data.root_pos_w[0].detach()
         target = [float(pos[0]), float(pos[1]), float(pos[2])]
-        eye = [target[0] + 3.0, target[1] + 3.0, target[2] + 2.0]
+        eye = [target[0] + 6.0, target[1] + 6.0, target[2] + 6.0]
         sim.set_camera_view(eye, target)
     except Exception:
         return
@@ -262,7 +262,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
                 policy_nn.reset(dones)
         if args_cli.video:
             timestep += 1
-            if timestep % 10 == 0:
+            if timestep % 40 == 0:  #10
                 _maybe_set_camera_view(env)
             # Exit the play loop after recording one video
             if timestep == args_cli.video_length:
