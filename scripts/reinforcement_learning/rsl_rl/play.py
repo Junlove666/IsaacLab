@@ -93,6 +93,52 @@ from isaaclab_tasks.utils.hydra import hydra_task_config
 
 # PLACEHOLDER: Extension template (do not remove this comment)
 
+def _maybe_set_camera_view(env) -> None:
+    """Best-effort camera placement to keep the main robot in view (env0).
+
+    For headless + RecordVideo runs, the default camera is often not pointed at the robot.
+    This helper tries common scene keys first, then falls back to the first articulation-like
+    entity that exposes root pose data.
+    """
+    try:
+        sim = env.unwrapped.sim
+        scene = getattr(env.unwrapped, "scene", None)
+        if scene is None:
+            return
+
+        # Try common keys first.
+        robot = None
+        for k in ("robot", "anymal", "agent"):
+            try:
+                robot = scene[k]
+                break
+            except Exception:
+                robot = None
+
+        # Fall back to first entity that looks like an articulation with root position.
+        if robot is None:
+            for k in scene.keys():
+                if k in ("terrain",):
+                    continue
+                try:
+                    ent = scene[k]
+                    data = getattr(ent, "data", None)
+                    if data is not None and hasattr(data, "root_pos_w"):
+                        robot = ent
+                        break
+                except Exception:
+                    continue
+
+        if robot is None:
+            return
+
+        pos = robot.data.root_pos_w[0].detach()
+        target = [float(pos[0]), float(pos[1]), float(pos[2])]
+        eye = [target[0] + 3.0, target[1] + 3.0, target[2] + 2.0]
+        sim.set_camera_view(eye, target)
+    except Exception:
+        return
+
 
 @hydra_task_config(args_cli.task, args_cli.agent)
 def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agent_cfg: RslRlBaseRunnerCfg):
@@ -197,6 +243,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     # reset environment
     obs = env.get_observations()
+    if args_cli.video:
+        _maybe_set_camera_view(env)
     timestep = 0
     # simulate environment
     while simulation_app.is_running():
@@ -214,6 +262,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
                 policy_nn.reset(dones)
         if args_cli.video:
             timestep += 1
+            if timestep % 10 == 0:
+                _maybe_set_camera_view(env)
             # Exit the play loop after recording one video
             if timestep == args_cli.video_length:
                 break
