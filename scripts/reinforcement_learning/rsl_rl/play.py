@@ -58,6 +58,12 @@ parser.add_argument(
     default=1.0,
     help="Scale multiplier applied to the policy residual before adding to reference action.",
 )
+parser.add_argument(
+    "--ref_traj_verbose",
+    action="store_true",
+    default=False,
+    help="Print which joints are matched by the reference trajectory patterns.",
+)
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -271,12 +277,14 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     ref_action_scale = None
     ref_action_offset = None
     joint_names_term = None
+    ref_traj_targets = None
     if args_cli.ref_traj is not None:
         ref_traj_path = retrieve_file_path(args_cli.ref_traj)
         with open(ref_traj_path, encoding="utf-8") as f:
             ref_traj_cfg = yaml.safe_load(f)
         if not isinstance(ref_traj_cfg, dict) or "joints" not in ref_traj_cfg:
             raise ValueError(f"Invalid ref_traj YAML format: {ref_traj_path}. Expected top-level key: 'joints'.")
+        ramp_in_s = float(ref_traj_cfg.get("ramp_in_s", 0.0) or 0.0)
 
         # resolve action term scale + default joint positions
         action_term = env.unwrapped.action_manager.get_term(args_cli.ref_traj_action_term)
@@ -299,22 +307,37 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
         # pre-compile patterns
         compiled = []
+        targets = []
         for item in ref_traj_cfg.get("joints", []):
             pattern = item.get("pattern")
             if not pattern:
                 continue
-            compiled.append(
-                (
-                    re.compile(pattern),
-                    float(item.get("amplitude", 0.0)),
-                    float(item.get("frequency_hz", 1.0)),
-                    float(item.get("phase_rad", 0.0)),
-                    float(item.get("bias", 0.0)),
-                )
-            )
+            pat = re.compile(pattern)
+            amp = float(item.get("amplitude", 0.0))
+            freq_hz = float(item.get("frequency_hz", 1.0))
+            phase = float(item.get("phase_rad", 0.0))
+            bias = float(item.get("bias", 0.0))
+            # resolve which joints this pattern matches (once)
+            matched = [j for j, name in enumerate(joint_names_term) if pat.search(name) is not None]
+            if len(matched) == 0:
+                continue
+            compiled.append((amp, freq_hz, phase, bias))
+            targets.append(matched)
         if len(compiled) == 0:
-            raise ValueError(f"ref_traj YAML contains no valid joint patterns: {ref_traj_path}")
+            raise ValueError(
+                f"ref_traj YAML did not match any joints for action term '{args_cli.ref_traj_action_term}'. "
+                f"File: {ref_traj_path}"
+            )
         ref_traj_compiled = compiled
+        ref_traj_targets = targets
+
+        if args_cli.ref_traj_verbose:
+            print(f"[INFO] ref_traj: {ref_traj_path}")
+            # show unique matched joint names
+            uniq = sorted({j for group in ref_traj_targets for j in group})
+            print(f"[INFO] ref_traj matched {len(uniq)} joints (showing up to 50):")
+            for j in uniq[:50]:
+                print(f"  - {joint_names_term[j]}")
 
     # reset environment
     obs = env.get_observations()
@@ -332,17 +355,20 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             # residual reference mode: action = policy + (ref_joint_pos - default_joint_pos)/scale
             if ref_traj_compiled is not None:
                 t = step_count * dt
+                # ramp-in to avoid a step change at t=0
+                if ramp_in_s > 0.0:
+                    ramp = min(1.0, max(0.0, t / ramp_in_s))
+                else:
+                    ramp = 1.0
                 # delta around default joint positions (same shape as action term)
                 delta = torch.zeros_like(ref_action_offset)
-                for (pat, amp, freq_hz, phase, bias) in ref_traj_compiled:
+                for (amp, freq_hz, phase, bias), joint_group in zip(ref_traj_compiled, ref_traj_targets, strict=True):
                     if amp == 0.0 and bias == 0.0:
                         continue
-                    v = bias + amp * math.sin(2.0 * math.pi * freq_hz * t + phase)
+                    v = (bias + amp * math.sin(2.0 * math.pi * freq_hz * t + phase)) * ramp
                     if v == 0.0:
                         continue
-                    for j, name in enumerate(joint_names_term):
-                        if pat.search(name) is not None:
-                            delta[:, j] += v
+                    delta[:, joint_group] += v
 
                 # convert desired joint position target (default + delta) to raw action space:
                 # processed = raw * scale + offset(default)
