@@ -290,7 +290,12 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         joint_ids = action_term._joint_ids  # noqa: SLF001
 
         joint_names_all = env.unwrapped.scene["robot"].data.joint_names
-        joint_names_term = [joint_names_all[i] for i in joint_ids]
+        # _joint_ids can be slice(None) when the term controls all joints (see isaaclab JointAction)
+        if isinstance(joint_ids, slice):
+            indices = list(range(len(joint_names_all)))[joint_ids]
+        else:
+            indices = list(joint_ids)
+        joint_names_term = [joint_names_all[i] for i in indices]
 
         # pre-compile patterns
         compiled = []
