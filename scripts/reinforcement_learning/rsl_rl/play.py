@@ -356,7 +356,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         # run everything in inference mode
         with torch.inference_mode():
             # agent stepping
-            actions = policy(obs)
+            policy_actions = policy(obs)
+            actions = policy_actions
 
             # residual reference mode: action = policy + (ref_joint_pos - default_joint_pos)/scale
             if ref_traj_compiled is not None:
@@ -385,11 +386,15 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
                     )
                 else:
                     ref_raw = delta / ref_action_scale if ref_action_scale != 0.0 else torch.zeros_like(delta)
-                actions = torch.clamp(ref_raw + actions * float(args_cli.ref_traj_residual_scale), -1.0, 1.0)
+                # IMPORTANT: only override the matched joints (e.g., arm joints).
+                # Leave all other joints fully controlled by the original policy to preserve balance.
+                uniq = sorted({j for group in ref_traj_targets for j in group})
+                alpha = float(args_cli.ref_traj_residual_scale)
+                actions = actions.clone()
+                actions[:, uniq] = torch.clamp(ref_raw[:, uniq] + policy_actions[:, uniq] * alpha, -1.0, 1.0)
 
                 # optional debug: print ref + action + resulting joint targets for env0
                 if args_cli.ref_traj_debug_every and (step_count % int(args_cli.ref_traj_debug_every) == 0):
-                    uniq = sorted({j for group in ref_traj_targets for j in group})
                     # only show a handful
                     show = uniq[:10]
                     # compute processed joint targets for the term: q = offset + scale * action
@@ -397,12 +402,12 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
                         q_target = ref_action_offset[0, show] + ref_action_scale[0, show] * actions[0, show]
                         dq_ref = delta[0, show]
                         a_ref_dbg = ref_raw[0, show]
-                        a_pol_dbg = policy(obs)[0, show]  # note: recompute is fine for debug
+                        a_pol_dbg = policy_actions[0, show]
                     else:
                         q_target = ref_action_offset[0, show] + float(ref_action_scale) * actions[0, show]
                         dq_ref = delta[0, show]
                         a_ref_dbg = ref_raw[0, show]
-                        a_pol_dbg = policy(obs)[0, show]
+                        a_pol_dbg = policy_actions[0, show]
                     names_dbg = [joint_names_term[j] for j in show]
                     print(f"[DEBUG] t={t:.3f}s ramped_ref (show {len(show)} joints):")
                     for n, dq, ar, ap, qt in zip(names_dbg, dq_ref.tolist(), a_ref_dbg.tolist(), a_pol_dbg.tolist(), q_target.tolist()):
