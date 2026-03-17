@@ -2,7 +2,7 @@ fps: 50
 duration_s: 4.0
 
 # 参考轨迹“渐入”时间（秒）。避免在 t=0 发生突变导致摔倒。
-ramp_in_s: 1.0
+ramp_in_s: 2.0
 
 # 参考轨迹以“默认关节角”为基准生成 delta（单位：rad）
 # ref_joint_pos(t) = default_joint_pos + delta(t)
@@ -14,17 +14,17 @@ joints:
   # - ".*_shoulder_pitch", ".*_elbow" 等
   # 默认会匹配左右两侧同名关节（如果你只想单臂，后续可以把 pattern 改成更具体的 left/right 前缀）。
 
-  # 肩关节：缓慢抬手/放手
-  - pattern: ".*_shoulder_pitch"
-    amplitude: 0.20
-    frequency_hz: 0.6
+  # 先只抬右手，便于排查是否真的有输出、同时对平衡干扰更小
+  - pattern: "right_shoulder_pitch"
+    amplitude: 0.10
+    frequency_hz: 0.4
     phase_rad: 0.0
     bias: 0.0
 
   # 肘关节：随肩一起小幅摆动（从 0 开始，避免 t=0 的突变）
-  - pattern: ".*_elbow"
-    amplitude: 0.25
-    frequency_hz: 0.6
+  - pattern: "right_elbow"
+    amplitude: 0.12
+    frequency_hz: 0.4
     phase_rad: 0.0
     bias: 0.0
 

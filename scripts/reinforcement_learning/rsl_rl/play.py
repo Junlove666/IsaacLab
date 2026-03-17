@@ -64,6 +64,12 @@ parser.add_argument(
     default=False,
     help="Print which joints are matched by the reference trajectory patterns.",
 )
+parser.add_argument(
+    "--ref_traj_debug_every",
+    type=int,
+    default=0,
+    help="If > 0, print reference/action debug info every N policy steps (env0).",
+)
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -380,6 +386,27 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
                 else:
                     ref_raw = delta / ref_action_scale if ref_action_scale != 0.0 else torch.zeros_like(delta)
                 actions = torch.clamp(ref_raw + actions * float(args_cli.ref_traj_residual_scale), -1.0, 1.0)
+
+                # optional debug: print ref + action + resulting joint targets for env0
+                if args_cli.ref_traj_debug_every and (step_count % int(args_cli.ref_traj_debug_every) == 0):
+                    uniq = sorted({j for group in ref_traj_targets for j in group})
+                    # only show a handful
+                    show = uniq[:10]
+                    # compute processed joint targets for the term: q = offset + scale * action
+                    if isinstance(ref_action_scale, torch.Tensor):
+                        q_target = ref_action_offset[0, show] + ref_action_scale[0, show] * actions[0, show]
+                        dq_ref = delta[0, show]
+                        a_ref_dbg = ref_raw[0, show]
+                        a_pol_dbg = policy(obs)[0, show]  # note: recompute is fine for debug
+                    else:
+                        q_target = ref_action_offset[0, show] + float(ref_action_scale) * actions[0, show]
+                        dq_ref = delta[0, show]
+                        a_ref_dbg = ref_raw[0, show]
+                        a_pol_dbg = policy(obs)[0, show]
+                    names_dbg = [joint_names_term[j] for j in show]
+                    print(f"[DEBUG] t={t:.3f}s ramped_ref (show {len(show)} joints):")
+                    for n, dq, ar, ap, qt in zip(names_dbg, dq_ref.tolist(), a_ref_dbg.tolist(), a_pol_dbg.tolist(), q_target.tolist()):
+                        print(f"  {n}: dq_ref={dq:+.4f}  a_ref={ar:+.4f}  a_pol={ap:+.4f}  q_target={qt:+.4f}")
             # env stepping
             obs, _, dones, _ = env.step(actions)
             # reset recurrent states for episodes that have terminated
