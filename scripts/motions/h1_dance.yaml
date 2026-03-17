@@ -1,0 +1,67 @@
+fps: 50
+duration_s: 9.0
+
+# 参考轨迹“渐入”时间（秒），避免一开始动作太猛影响平衡
+ramp_in_s: 2.0
+
+# 说明：
+# - 这里的 amplitude 是“目标关节角增量”（单位：rad），在 JointPositionActionCfg(scale=0.5) 下，
+#   实际可达的最大 delta 会被关节限位和 scale 限制。你实测需要到 ±3~5 才明显，这里直接按这个量级设置，
+#   多出来的部分会被关节限位/动作裁剪掉，不会真的走到 3~5 rad。
+#
+# - pattern 直接用 H1 的实际关节名（见 isaaclab_assets/robots/unitree.py 与调试输出）：
+#   left_shoulder_pitch/right_shoulder_pitch/left_elbow/right_elbow 等。
+#
+# - 这个文件大致做三个效果叠加：
+#   1）双手前后摆动（肩 pitch）
+#   2）双手左右打开/合拢（肩 roll）
+#   3）双肘稍微配合弯曲，形成“舞动”感
+
+joints:
+  # -----------------------------
+  # 段 1（约 0~3s）：双臂前后大幅摆动
+  # -----------------------------
+  - pattern: "left_shoulder_pitch"
+    amplitude: 3.0
+    frequency_hz: 0.33
+    phase_rad: 0.0
+    bias: 0.0
+
+  - pattern: "right_shoulder_pitch"
+    amplitude: 3.0
+    frequency_hz: 0.33
+    phase_rad: 1.0
+    bias: 0.0
+
+  # -----------------------------
+  # 段 2（约 3~6s）：双臂左右张开/合拢（像张开双翼）
+  # 通过更低频率 + 与肩 pitch 的叠加，形成大致分段效果
+  # -----------------------------
+  - pattern: "left_shoulder_roll"
+    amplitude: 4.0
+    frequency_hz: 0.18
+    phase_rad: 0.0
+    bias: 0.0
+
+  - pattern: "right_shoulder_roll"
+    amplitude: 4.0
+    frequency_hz: 0.18
+    phase_rad: 0.7
+    bias: 0.0
+
+  # -----------------------------
+  # 段 3（约 6~9s）：主要用肘关节做“挥动”动作
+  # 通过更高频率 + 相位差，实现左右交替挥动
+  # -----------------------------
+  - pattern: "left_elbow"
+    amplitude: 5.0
+    frequency_hz: 0.55
+    phase_rad: 0.8
+    bias: 0.0
+
+  - pattern: "right_elbow"
+    amplitude: 5.0
+    frequency_hz: 0.55
+    phase_rad: 1.6
+    bias: 0.0
+
