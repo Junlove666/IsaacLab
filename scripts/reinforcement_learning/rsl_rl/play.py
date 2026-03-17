@@ -347,7 +347,12 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
                 # convert desired joint position target (default + delta) to raw action space:
                 # processed = raw * scale + offset(default)
                 # want processed = default + delta + (policy*scale)  => raw = (delta/scale) + policy
-                ref_raw = torch.where(ref_action_scale != 0.0, delta / ref_action_scale, torch.zeros_like(delta))
+                if isinstance(ref_action_scale, torch.Tensor):
+                    ref_raw = torch.where(
+                        ref_action_scale != 0.0, delta / ref_action_scale, torch.zeros_like(delta)
+                    )
+                else:
+                    ref_raw = delta / ref_action_scale if ref_action_scale != 0.0 else torch.zeros_like(delta)
                 actions = torch.clamp(ref_raw + actions * float(args_cli.ref_traj_residual_scale), -1.0, 1.0)
             # env stepping
             obs, _, dones, _ = env.step(actions)
