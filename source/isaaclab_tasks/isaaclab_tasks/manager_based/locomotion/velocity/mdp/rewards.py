@@ -129,10 +129,10 @@ def track_motion_joint_pos_exp(
 ) -> torch.Tensor:
     """Reward tracking a reference joint pose defined by a motion library.
 
-    Expects the command tensor to be 4D, with:
+    Expects the command tensor to be at least 2D, with:
     - command[0]: motion_id scaled to [-1, 1]
     - command[1]: phase scaled to [-1, 1]
-    Remaining dims are unused.
+    Remaining dims (if any) are unused.
     """
     asset = env.scene[asset_cfg.name]
     cmd = env.command_manager.get_command(command_name)

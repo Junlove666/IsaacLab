@@ -48,8 +48,8 @@ class H1MotionRewards(H1Rewards):
 class H1MotionRoughEnvCfg(H1RoughEnvCfg):
     """H1 motion-sequence task on rough terrain scene template.
 
-    Uses a 4D command to keep observation size unchanged:
-      [motion_id_scaled, phase_scaled, 0, 0]
+    Uses a 3D command to keep observation size unchanged:
+      [motion_id_scaled, phase_scaled, 0]
     """
 
     rewards: H1MotionRewards = H1MotionRewards()

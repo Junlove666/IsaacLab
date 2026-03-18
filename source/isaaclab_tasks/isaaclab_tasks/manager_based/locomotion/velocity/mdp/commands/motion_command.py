@@ -1,7 +1,7 @@
 """Motion command term for motion-sequence tasks.
 
-This command outputs a 4D tensor to keep the policy observation shape unchanged:
-  [motion_id_scaled, phase_scaled, 0, 0]
+This command outputs a 3D tensor to keep the policy observation shape unchanged for the H1 velocity tasks:
+  [motion_id_scaled, phase_scaled, 0]
 """
 
 # Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
@@ -22,7 +22,7 @@ from isaaclab.utils import configclass
 
 
 class MotionSequenceCommand(CommandTerm):
-    """Outputs a 4D command: [motion_id_scaled, phase_scaled, 0, 0]."""
+    """Outputs a 3D command: [motion_id_scaled, phase_scaled, 0]."""
 
     def __init__(self, cfg: "MotionSequenceCommandCfg", env):
         super().__init__(cfg, env)
@@ -31,7 +31,7 @@ class MotionSequenceCommand(CommandTerm):
         # buffers
         self._motion_id = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
         self._phase = torch.zeros(self.num_envs, device=self.device)
-        self._cmd = torch.zeros(self.num_envs, 4, device=self.device)
+        self._cmd = torch.zeros(self.num_envs, 3, device=self.device)
 
         # metrics
         self.metrics["motion_id"] = torch.zeros(self.num_envs, device=self.device)
@@ -70,7 +70,6 @@ class MotionSequenceCommand(CommandTerm):
         self._cmd[:, 0] = motion_scaled
         self._cmd[:, 1] = phase_scaled
         self._cmd[:, 2] = 0.0
-        self._cmd[:, 3] = 0.0
 
 
 @configclass
