@@ -46,6 +46,17 @@ parser.add_argument(
         "for the specified joint position action term."
     ),
 )
+
+parser.add_argument(
+    "--motion_ref_file",
+    type=str,
+    default=None,
+    help=(
+        "Reference YAML motion file for Goal 2 (ref_joint_pos tracking). "
+        "Only used by tasks that repurpose commands.base_velocity as ref_joint_pos "
+        "(e.g., Isaac-MotionRef-Rough-H1-Play-v0)."
+    ),
+)
 parser.add_argument(
     "--ref_traj_action_term",
     type=str,
@@ -195,6 +206,21 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # note: certain randomizations occur in the environment initialization so we set the seed here
     env_cfg.seed = agent_cfg.seed
     env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
+
+    # Override reference motion file for Goal 2 tasks.
+    if getattr(args_cli, "motion_ref_file", None) is not None:
+        try:
+            ref_path = retrieve_file_path(args_cli.motion_ref_file)
+        except FileNotFoundError:
+            # If user launches from RL_Projects root, configs often use "scripts/..." relative to IsaacLab/.
+            ref_path = retrieve_file_path(os.path.join("IsaacLab", args_cli.motion_ref_file))
+        # For our Goal 2 env, base_velocity is repurposed to output ref_joint_pos.
+        try:
+            env_cfg.commands.base_velocity.motion_ref_files = [ref_path]
+        except Exception:
+            raise ValueError(
+                "motion_ref_file was provided, but env_cfg.commands.base_velocity has no motion_ref_files field."
+            )
 
     # specify directory for logging experiments
     log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)

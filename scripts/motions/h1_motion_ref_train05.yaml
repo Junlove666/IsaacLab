@@ -1,0 +1,12 @@
+{
+  "ramp_in_s": 0.5,
+  "joints": [
+    { "pattern": "^torso$", "amplitude": 0.22, "frequency_hz": 0.4, "phase_rad": 2.2, "bias": 0.08 },
+    { "pattern": "^left_shoulder_pitch$", "amplitude": 0.65, "frequency_hz": 0.5, "phase_rad": -1.1, "bias": 0.0 },
+    { "pattern": "^right_shoulder_pitch$", "amplitude": 0.65, "frequency_hz": 0.5, "phase_rad": 1.6, "bias": 0.0 },
+    { "pattern": "^left_elbow$", "amplitude": 0.55, "frequency_hz": 0.5, "phase_rad": 0.35, "bias": 0.0 },
+    { "pattern": "^right_elbow$", "amplitude": 0.55, "frequency_hz": 0.5, "phase_rad": 2.95, "bias": 0.0 },
+    { "pattern": "^left_shoulder_roll$", "amplitude": 0.18, "frequency_hz": 0.35, "phase_rad": 0.0, "bias": 0.0 },
+    { "pattern": "^right_shoulder_roll$", "amplitude": 0.18, "frequency_hz": 0.35, "phase_rad": 1.57, "bias": 0.0 }
+  ]
+}

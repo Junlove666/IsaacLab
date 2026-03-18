@@ -193,3 +193,61 @@ def track_motion_joint_pos_exp(
     q = asset.data.joint_pos[:, joint_ids]
     err = torch.mean(torch.square(q - q_target), dim=1)
     return torch.exp(-err / (std**2))
+
+
+def track_ref_joint_pos_exp(
+    env,
+    command_name: str,
+    joint_names: list[str],
+    std: float = 0.45,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Reward tracking reference joint positions provided by a command term.
+
+    This is intended for the "Goal 2" setup where:
+      - ``commands.base_velocity`` is repurposed to output ``ref_joint_pos`` directly
+      - the observation term ``velocity_commands`` concatenates it into the policy input
+      - the reward compares the robot's current joint positions to that reference.
+
+    Expects:
+      - command has shape (num_envs, len(joint_names))
+      - returned reference joint order matches ``joint_names``.
+    """
+    asset = env.scene[asset_cfg.name]
+    cmd = env.command_manager.get_command(command_name)
+
+    if cmd.shape[-1] != len(joint_names):
+        raise ValueError(f"track_ref_joint_pos_exp: command dim mismatch, got={cmd.shape[-1]} expected={len(joint_names)}")
+
+    # Cache joint ids on env for performance.
+    cache_key = "_track_ref_joint_ids_" + "_".join(joint_names)
+    if not hasattr(env, cache_key):
+        name_to_id = {n: i for i, n in enumerate(asset.data.joint_names)}
+        ids = []
+        for n in joint_names:
+            if n not in name_to_id:
+                raise ValueError(f"Joint name '{n}' not found in asset joint_names.")
+            ids.append(name_to_id[n])
+        setattr(env, cache_key, torch.tensor(ids, device=asset.data.joint_pos.device, dtype=torch.long))
+    joint_ids = getattr(env, cache_key)
+
+    q = asset.data.joint_pos[:, joint_ids]
+    err = torch.mean(torch.square(q - cmd), dim=1)
+    return torch.exp(-err / (std**2))
+
+
+def root_lin_vel_xy_l2(env, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize x/y base linear velocity magnitude (in the robot base frame).
+
+    Intended for "stay in place while doing upper-body/stance motions" tasks.
+    """
+    asset = env.scene[asset_cfg.name]
+    return torch.sum(torch.square(asset.data.root_lin_vel_b[:, :2]), dim=1)
+
+
+def root_pos_xy_l2(env, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize xy drift from the environment origin (world frame)."""
+    asset = env.scene[asset_cfg.name]
+    # env.scene.env_origins is shape (num_envs, 3); subtract xy only.
+    delta_xy = asset.data.root_pos_w[:, :2] - env.scene.env_origins[:, :2]
+    return torch.sum(torch.square(delta_xy), dim=1)

@@ -6,4 +6,5 @@
 """Command terms for the velocity locomotion tasks."""
 
 from .motion_command import *  # noqa: F401, F403
+from .motion_ref_command import *  # noqa: F401, F403
 

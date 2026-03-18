@@ -1,0 +1,29 @@
+{
+  "ramp_in_s": 0.45,
+  "joints": [
+    { "pattern": "^torso$", "amplitude": 0.1, "frequency_hz": 0.22, "phase_rad": 1.2, "bias": 0.02 },
+
+    { "pattern": "^left_hip_pitch$", "amplitude": 0.25, "frequency_hz": 0.33, "phase_rad": 1.57, "bias": 0.04 },
+    { "pattern": "^right_hip_pitch$", "amplitude": 0.18, "frequency_hz": 0.33, "phase_rad": -1.57, "bias": 0.06 },
+    { "pattern": "^left_knee$", "amplitude": 0.2, "frequency_hz": 0.33, "phase_rad": 1.57, "bias": 0.07 },
+    { "pattern": "^right_knee$", "amplitude": 0.2, "frequency_hz": 0.33, "phase_rad": -1.57, "bias": 0.06 },
+    { "pattern": "^left_ankle$", "amplitude": 0.12, "frequency_hz": 0.33, "phase_rad": 1.57, "bias": -0.03 },
+    { "pattern": "^right_ankle$", "amplitude": 0.14, "frequency_hz": 0.33, "phase_rad": -1.57, "bias": -0.025 },
+
+    { "pattern": "^left_hip_yaw$", "amplitude": 0.02, "frequency_hz": 0.3, "phase_rad": 0.0, "bias": 0.0 },
+    { "pattern": "^right_hip_yaw$", "amplitude": 0.02, "frequency_hz": 0.3, "phase_rad": 0.0, "bias": 0.0 },
+    { "pattern": "^left_hip_roll$", "amplitude": 0.02, "frequency_hz": 0.25, "phase_rad": 0.5, "bias": 0.0 },
+    { "pattern": "^right_hip_roll$", "amplitude": 0.02, "frequency_hz": 0.25, "phase_rad": -0.5, "bias": 0.0 },
+
+    { "pattern": "^left_shoulder_pitch$", "amplitude": 0.45, "frequency_hz": 0.6, "phase_rad": 0.3, "bias": 0.04 },
+    { "pattern": "^right_shoulder_pitch$", "amplitude": 0.45, "frequency_hz": 0.6, "phase_rad": 3.44159, "bias": -0.02 },
+    { "pattern": "^left_elbow$", "amplitude": 0.3, "frequency_hz": 0.6, "phase_rad": 0.0, "bias": 0.01 },
+    { "pattern": "^right_elbow$", "amplitude": 0.22, "frequency_hz": 0.6, "phase_rad": 3.14159, "bias": -0.01 },
+
+    { "pattern": "^left_shoulder_roll$", "amplitude": 0.12, "frequency_hz": 0.4, "phase_rad": 0.0, "bias": 0.0 },
+    { "pattern": "^right_shoulder_roll$", "amplitude": 0.12, "frequency_hz": 0.4, "phase_rad": 3.14159, "bias": 0.0 },
+
+    { "pattern": "^left_shoulder_yaw$", "amplitude": 0.08, "frequency_hz": 0.35, "phase_rad": 0.2, "bias": 0.0 },
+    { "pattern": "^right_shoulder_yaw$", "amplitude": 0.08, "frequency_hz": 0.35, "phase_rad": -0.2, "bias": 0.0 }
+  ]
+}
