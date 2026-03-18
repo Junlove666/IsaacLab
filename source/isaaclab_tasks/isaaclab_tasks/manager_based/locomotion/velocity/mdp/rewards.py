@@ -123,7 +123,7 @@ def track_motion_joint_pos_exp(
     env,
     command_name: str,
     joint_names: list[str],
-    motion_library,
+    motions: list[list[tuple[float, dict[str, float]]]],
     std: float = 0.5,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
@@ -137,7 +137,7 @@ def track_motion_joint_pos_exp(
     asset = env.scene[asset_cfg.name]
     cmd = env.command_manager.get_command(command_name)
     # decode motion id and phase
-    num_motions = len(getattr(motion_library, "MOTIONS", []))
+    num_motions = len(motions)
     if num_motions <= 0:
         return torch.zeros((env.num_envs,), device=asset.data.joint_pos.device)
     motion_cont = (cmd[:, 0] + 1.0) * 0.5 * (num_motions - 1)
@@ -156,11 +156,35 @@ def track_motion_joint_pos_exp(
         setattr(env, cache_key, torch.tensor(ids, device=asset.data.joint_pos.device, dtype=torch.long))
     joint_ids = getattr(env, cache_key)
 
-    # build target deltas per env on CPU (small) then move to torch
-    # Note: we keep this simple; motions are short (few joints), overhead is negligible vs sim.
+    def _smoothstep(x: float) -> float:
+        x = 0.0 if x < 0.0 else 1.0 if x > 1.0 else x
+        return x * x * (3.0 - 2.0 * x)
+
+    def _sample_motion(motion_data: list[tuple[float, dict[str, float]]], ph: float) -> dict[str, float]:
+        if not motion_data:
+            return {}
+        ph = ph % 1.0
+        frames = sorted(motion_data, key=lambda it: it[0])
+        # wrap by duplicating first at +1
+        phases = [p for p, _ in frames] + [frames[0][0] + 1.0]
+        deltas = [d for _, d in frames] + [frames[0][1]]
+        idx = 0
+        while idx + 1 < len(phases) and not (phases[idx] <= ph < phases[idx + 1]):
+            idx += 1
+        p0, p1 = phases[idx], phases[idx + 1]
+        d0, d1 = deltas[idx], deltas[idx + 1]
+        seg = (ph - p0) / (p1 - p0 + 1e-9)
+        w = _smoothstep(seg)
+        keys = set(d0.keys()) | set(d1.keys())
+        out: dict[str, float] = {}
+        for k in keys:
+            out[k] = (1.0 - w) * float(d0.get(k, 0.0)) + w * float(d1.get(k, 0.0))
+        return out
+
+    # build target deltas per env on CPU (small) then move to torch.
     target_delta = torch.zeros((env.num_envs, len(joint_names)), device=asset.data.joint_pos.device)
     for i in range(env.num_envs):
-        deltas = motion_library.sample_keyframes(motion_library.MOTIONS[int(motion_id[i].item())], float(phase[i].item()))
+        deltas = _sample_motion(motions[int(motion_id[i].item())], float(phase[i].item()))
         for j, name in enumerate(joint_names):
             target_delta[i, j] = float(deltas.get(name, 0.0))
 

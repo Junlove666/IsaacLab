@@ -38,7 +38,7 @@ class H1MotionRewards(H1Rewards):
                 "left_elbow",
                 "right_elbow",
             ],
-            "motion_library": motion_library,
+            "motions": motion_library.MOTIONS_DATA,
             "std": 0.45,
         },
     )
@@ -63,7 +63,7 @@ class H1MotionRoughEnvCfg(H1RoughEnvCfg):
         # swap command generator to motion sequence command (dim=4 to keep obs shape)
         self.commands.base_velocity = mdp.MotionSequenceCommandCfg(
             asset_name="robot",
-            num_motions=len(motion_library.MOTIONS),
+            num_motions=len(motion_library.MOTIONS_DATA),
             motion_duration_s=10.0,
             resampling_time_range=(10.0, 10.0),
             debug_vis=False,

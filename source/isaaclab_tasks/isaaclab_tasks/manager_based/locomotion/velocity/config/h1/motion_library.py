@@ -98,3 +98,9 @@ MOTIONS: list[list[Keyframe]] = [
     ],
 ]
 
+# A pure-data version of motions that is safe to put into config params (deepcopy/pickle friendly).
+# Format: list[motion] where motion is list[(phase, {joint_name: delta_rad})]
+MOTIONS_DATA: list[list[tuple[float, dict[str, float]]]] = [
+    [(kf.phase, dict(kf.delta)) for kf in motion] for motion in MOTIONS
+]
+
