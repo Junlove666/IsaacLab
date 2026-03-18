@@ -1,3 +1,9 @@
+"""Motion command term for motion-sequence tasks.
+
+This command outputs a 4D tensor to keep the policy observation shape unchanged:
+  [motion_id_scaled, phase_scaled, 0, 0]
+"""
+
 # Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
 # All rights reserved.
 #
@@ -5,9 +11,8 @@
 
 from __future__ import annotations
 
-import math
-from dataclasses import MISSING
 from collections.abc import Sequence
+from dataclasses import MISSING
 
 import torch
 
@@ -16,39 +21,10 @@ from isaaclab.managers import CommandTerm, CommandTermCfg
 from isaaclab.utils import configclass
 
 
-@configclass
-class MotionSequenceCommandCfg(CommandTermCfg):
-    """Command generator for selecting a motion (categorical) and phase (continuous).
-
-    We intentionally keep the command dimension at 4 to match the original velocity command
-    observation term size, so that policy observation shapes can remain unchanged.
-    """
-
-    class_type: type = MISSING  # populated after class definition
-
-    asset_name: str = "robot"
-    """Name of the robot articulation in the scene."""
-
-    num_motions: int = 3
-    """Number of motion sequences."""
-
-    motion_duration_s: float = 10.0
-    """Duration of one motion cycle in seconds."""
-
-    def __post_init__(self):
-        # Default: resample a new motion every motion_duration_s (roughly one cycle).
-        # CommandTermCfg expects this field to be set (it can be MISSING), so we always populate it here
-        # unless the user explicitly set it to something else.
-        if getattr(self, "resampling_time_range", MISSING) is MISSING or self.resampling_time_range is None:
-            self.resampling_time_range = (float(self.motion_duration_s), float(self.motion_duration_s))
-
-
 class MotionSequenceCommand(CommandTerm):
     """Outputs a 4D command: [motion_id_scaled, phase_scaled, 0, 0]."""
 
-    cfg: MotionSequenceCommandCfg
-
-    def __init__(self, cfg: MotionSequenceCommandCfg, env):
+    def __init__(self, cfg: "MotionSequenceCommandCfg", env):
         super().__init__(cfg, env)
         self.robot: Articulation = env.scene[cfg.asset_name]
 
@@ -71,7 +47,9 @@ class MotionSequenceCommand(CommandTerm):
         if len(env_ids) == 0:
             return
         # sample new motion ids uniformly
-        self._motion_id[env_ids] = torch.randint(low=0, high=int(self.cfg.num_motions), size=(len(env_ids),), device=self.device)
+        self._motion_id[env_ids] = torch.randint(
+            low=0, high=int(self.cfg.num_motions), size=(len(env_ids),), device=self.device
+        )
         # reset phase
         self._phase[env_ids] = 0.0
 
@@ -95,6 +73,23 @@ class MotionSequenceCommand(CommandTerm):
         self._cmd[:, 3] = 0.0
 
 
-# bind cfg class_type now that class is defined
-MotionSequenceCommandCfg.class_type = MotionSequenceCommand
+@configclass
+class MotionSequenceCommandCfg(CommandTermCfg):
+    """Configuration for :class:`MotionSequenceCommand`."""
 
+    # NOTE: Set directly here (do not patch later), otherwise config validation may see MISSING.
+    class_type: type[CommandTerm] = MotionSequenceCommand
+
+    asset_name: str = "robot"
+    """Name of the robot articulation in the scene."""
+
+    num_motions: int = 3
+    """Number of motion sequences."""
+
+    motion_duration_s: float = 10.0
+    """Duration of one motion cycle in seconds."""
+
+    def __post_init__(self):
+        # Default: resample a new motion every motion_duration_s (roughly one cycle).
+        if getattr(self, "resampling_time_range", MISSING) is MISSING or self.resampling_time_range is None:
+            self.resampling_time_range = (float(self.motion_duration_s), float(self.motion_duration_s))
