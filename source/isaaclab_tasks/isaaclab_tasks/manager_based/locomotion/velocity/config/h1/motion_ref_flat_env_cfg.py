@@ -10,7 +10,7 @@ from isaaclab.utils import configclass
 
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 from isaaclab_tasks.manager_based.locomotion.velocity.config.h1.flat_env_cfg import H1FlatEnvCfg
-from isaaclab_tasks.manager_based.locomotion.velocity.config.h1.rough_env_cfg import H1Rewards
+from isaaclab_tasks.manager_based.locomotion.velocity.config.h1.rough_env_cfg import H1Rewards, H1RoughEnvCfg
 from isaaclab_tasks.manager_based.locomotion.velocity.mdp.commands.motion_ref_command import (
     MotionRefJointPosCommandCfg as Goal2MotionRefJointPosCommandCfg,
 )
@@ -98,9 +98,14 @@ class H1MotionRefFlatEnvCfg(H1FlatEnvCfg):
     rewards: H1MotionRefFlatRewards = H1MotionRefFlatRewards()
 
     def __post_init__(self):
-        super().__post_init__()
+        # Skip H1FlatEnvCfg.__post_init__ to avoid feet_air_time.weight (we set feet_air_time=None).
+        H1RoughEnvCfg.__post_init__(self)
 
-        # No terrain randomization curriculum on flat.
+        # Flat terrain (same as H1FlatEnvCfg but without feet_air_time).
+        self.scene.terrain.terrain_type = "plane"
+        self.scene.terrain.terrain_generator = None
+        self.scene.height_scanner = None
+        self.observations.policy.height_scan = None
         self.curriculum.terrain_levels = None
 
         # Episode duration should match reference motion duration.
