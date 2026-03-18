@@ -201,6 +201,7 @@ def track_ref_joint_pos_exp(
     joint_names: list[str],
     std: float = 0.45,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    command_joint_order: list[str] | None = None,
 ) -> torch.Tensor:
     """Reward tracking reference joint positions provided by a command term.
 
@@ -209,15 +210,29 @@ def track_ref_joint_pos_exp(
       - the observation term ``velocity_commands`` concatenates it into the policy input
       - the reward compares the robot's current joint positions to that reference.
 
-    Expects:
-      - command has shape (num_envs, len(joint_names))
-      - returned reference joint order matches ``joint_names``.
+    Args:
+      - If ``command_joint_order`` is None: command has shape (num_envs, len(joint_names)).
+      - If ``command_joint_order`` is set: command has shape (num_envs, len(command_joint_order)),
+        and ``joint_names`` must be a subset of ``command_joint_order``; only those joints are used.
+        Use this to add a separate reward over a subset (e.g. legs only) when command is full-body.
     """
     asset = env.scene[asset_cfg.name]
     cmd = env.command_manager.get_command(command_name)
 
-    if cmd.shape[-1] != len(joint_names):
-        raise ValueError(f"track_ref_joint_pos_exp: command dim mismatch, got={cmd.shape[-1]} expected={len(joint_names)}")
+    if command_joint_order is not None:
+        # Select columns of cmd corresponding to joint_names (subset of command_joint_order).
+        order = list(command_joint_order)
+        if cmd.shape[-1] != len(order):
+            raise ValueError(
+                f"track_ref_joint_pos_exp: command dim mismatch, got={cmd.shape[-1]} expected={len(order)}"
+            )
+        col_idx = [order.index(n) for n in joint_names]
+        cmd = cmd[:, col_idx]
+    else:
+        if cmd.shape[-1] != len(joint_names):
+            raise ValueError(
+                f"track_ref_joint_pos_exp: command dim mismatch, got={cmd.shape[-1]} expected={len(joint_names)}"
+            )
 
     # Cache joint ids on env for performance.
     cache_key = "_track_ref_joint_ids_" + "_".join(joint_names)

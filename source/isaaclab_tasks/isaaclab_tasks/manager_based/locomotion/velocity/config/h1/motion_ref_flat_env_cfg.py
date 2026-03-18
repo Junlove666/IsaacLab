@@ -43,6 +43,21 @@ TRACK_JOINT_NAMES: list[str] = [
     "right_elbow",
 ]
 
+# Subset for explicit leg+torso tracking (zhanma bu); use with command_joint_order=TRACK_JOINT_NAMES.
+LEG_AND_TORSO_JOINT_NAMES: list[str] = [
+    "torso",
+    "left_hip_yaw",
+    "right_hip_yaw",
+    "left_hip_roll",
+    "right_hip_roll",
+    "left_hip_pitch",
+    "right_hip_pitch",
+    "left_knee",
+    "right_knee",
+    "left_ankle",
+    "right_ankle",
+]
+
 
 # Default reference files for training (sampled randomly per env episode).
 TRAIN_MOTION_REF_FILES: list[str] = [
@@ -75,6 +90,18 @@ class H1MotionRefFlatRewards(H1Rewards):
             "command_name": "base_velocity",
             "joint_names": TRACK_JOINT_NAMES,
             "std": 0.6,
+        },
+    )
+
+    # Explicit reward for leg + torso tracking so the policy does not ignore legs (zhanma bu).
+    track_ref_pose_legs = RewTerm(
+        func=mdp.track_ref_joint_pos_exp,
+        weight=1.2,
+        params={
+            "command_name": "base_velocity",
+            "joint_names": LEG_AND_TORSO_JOINT_NAMES,
+            "std": 0.5,
+            "command_joint_order": TRACK_JOINT_NAMES,
         },
     )
 
