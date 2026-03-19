@@ -35,16 +35,20 @@ args_cli = parser.parse_args()
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
+import importlib.metadata as metadata
+
 import gymnasium as gym
 import torch
 from rsl_rl.runners import DistillationRunner, OnPolicyRunner
 
 from isaaclab.envs import DirectMARLEnv, multi_agent_to_single_agent
 from isaaclab.utils.assets import retrieve_file_path
-from isaaclab_rl.rsl_rl import RslRlVecEnvWrapper
+from isaaclab_rl.rsl_rl import RslRlVecEnvWrapper, handle_deprecated_rsl_rl_cfg
 
 import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils.parse_cfg import load_cfg_from_registry
+
+installed_version = metadata.version("rsl-rl-lib")
 
 
 @dataclass
@@ -98,12 +102,14 @@ def _resolve_tracking_score(log_dict: dict) -> tuple[float, str]:
 def evaluate_case(case: EvalCase) -> dict[str, float | str]:
     env_cfg = load_cfg_from_registry(case.task, "env_cfg_entry_point")
     agent_cfg = load_cfg_from_registry(case.task, args_cli.agent)
+    agent_cfg = handle_deprecated_rsl_rl_cfg(agent_cfg, installed_version)
 
     env_cfg.scene.num_envs = int(args_cli.num_envs)
     env_cfg.seed = int(args_cli.seed)
-    if args_cli.device is not None:
-        env_cfg.sim.device = args_cli.device
-        agent_cfg.device = args_cli.device
+    device = getattr(args_cli, "device", None)
+    if device is not None:
+        env_cfg.sim.device = device
+        agent_cfg.device = device
     agent_cfg.seed = int(args_cli.seed)
 
     if case.model_type == "B":
