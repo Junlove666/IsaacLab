@@ -26,7 +26,6 @@ parser.add_argument(
 parser.add_argument("--num_envs", type=int, default=64, help="Parallel env count for each case.")
 parser.add_argument("--episodes_per_case", type=int, default=200, help="Number of completed episodes per case.")
 parser.add_argument("--seed", type=int, default=42, help="Evaluation seed.")
-parser.add_argument("--device", type=str, default=None, help="Simulation device, e.g. cuda:0.")
 parser.add_argument("--agent", type=str, default="rsl_rl_cfg_entry_point", help="Registry key for agent config.")
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
