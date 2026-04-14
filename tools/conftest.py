@@ -27,7 +27,7 @@ def capture_test_output_with_timeout(cmd, timeout, env):
     """Run a command with timeout and capture all output while streaming in real-time."""
     stdout_data = b""
     stderr_data = b""
-
+ 
     try:
         # Use Popen to capture output in real-time
         process = subprocess.Popen(
